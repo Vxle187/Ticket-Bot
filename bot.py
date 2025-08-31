@@ -1,4 +1,3 @@
-
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -7,9 +6,10 @@ import datetime
 import os
 
 # ---------- CONFIG ----------
-DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")  # Token aus Render-Env
-GUILD_ID = 123456789012345678  # <- deine Server-ID HIER einsetzen!
+DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")  # Render-Umgebungsvariable
+GUILD_ID = 123456789012345678  # <- DEINE SERVER ID hier!
 LOG_CHANNEL_ID = 1397304957518221312
+TICKET_CHANNEL_ID = 1412000000000000000  # <- Channel ID, wo die Setup Nachricht automatisch rein soll
 LOGO_URL = "https://cdn.discordapp.com/attachments/1396969116195360941/1411723745546211409/BLCP-Logo2_3.png"
 
 # Kategorien
@@ -86,28 +86,24 @@ class TicketDropdown(discord.ui.Select):
 
         await interaction.response.send_message(f"✅ Ticket erstellt: {ticket_channel.mention}", ephemeral=True)
 
-       # Ticket erstellen
-ticket_channel = await guild.create_text_channel(
-    name=f"ticket-{interaction.user.name}",
-    category=category,
-    overwrites={
-        guild.default_role: discord.PermissionOverwrite(read_messages=False),
-        interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
-    },
-)
+        # Begrüßung senden
+        await ticket_channel.send(
+            f"👋 Willkommen {interaction.user.mention}!\n"
+            f"Bitte beantworte die folgenden Fragen, damit wir dir schnell helfen können."
+        )
 
-await interaction.response.send_message(f"✅ Ticket erstellt: {ticket_channel.mention}", ephemeral=True)
+        # Fragen stellen
+        antworten = []
+        for frage in TICKET_FRAGEN.get(art, []):
+            await ticket_channel.send(f"**{frage}**")
 
-# Begrüßung reinschreiben
-await ticket_channel.send(
-    f"👋 Willkommen {interaction.user.mention}!\n\n"
-    "Bitte beantworte die folgenden Fragen so genau wie möglich, damit wir dir bestmöglich helfen können."
-)
-
-# Fragen stellen
-antworten = []
-for frage in TICKET_FRAGEN.get(art, []):
-    await ticket_channel.send(f"**{frage}**")
+            def check(m): 
+                return m.author == interaction.user and m.channel == ticket_channel
+            try:
+                msg = await bot.wait_for("message", check=check, timeout=300)
+                antworten.append(msg.content)
+            except asyncio.TimeoutError:
+                antworten.append("_Keine Antwort_")
 
         # Speichern
         user_tickets[interaction.user.id] = {
@@ -138,7 +134,7 @@ class TicketDropdownView(discord.ui.View):
         self.add_item(TicketDropdown())
 
 
-# Ticket Setup Command
+# Ticket Setup Command (manuell)
 @tree.command(name="ticketsetup", description="Setup für Ticketsystem")
 async def ticketsetup(interaction: discord.Interaction):
     embed = discord.Embed(
@@ -192,10 +188,12 @@ async def ticketclose(interaction: discord.Interaction):
     await interaction.response.send_message("✅ Ticket geschlossen.", ephemeral=True)
     await channel.delete()
 
+
+# ---------- START ----------
 @bot.event
 async def on_ready():
     try:
-        # Commands syncen
+        # Erst Guild-Commands syncen
         await tree.sync(guild=discord.Object(id=GUILD_ID))
         print(f"✅ Commands für Guild {GUILD_ID} synchronisiert")
     except Exception as e:
@@ -205,9 +203,8 @@ async def on_ready():
 
     print(f"🤖 Bot online als {bot.user}")
 
-    # ---- Automatisch Ticket-System posten ----
-    channel_id = 1396969114442006539  # HIER die Channel-ID, wo der Embed rein soll
-    channel = bot.get_channel(channel_id)
+    # Automatisch Ticket-System-Embed in den festen Channel schicken
+    channel = bot.get_channel(TICKET_CHANNEL_ID)
     if channel:
         embed = discord.Embed(
             title="📩 BloodLife | Ticketsystem",
@@ -219,24 +216,6 @@ async def on_ready():
         embed.set_footer(text="BloodLife Police Department | Made by Vxle", icon_url=LOGO_URL)
 
         await channel.send(embed=embed, view=TicketDropdownView())
-        print("📩 Ticketsystem automatisch gesendet!")
-    else:
-        print("❌ Channel für Ticketsystem nicht gefunden! Check die ID.")
-
-# ---------- START ----------
-@bot.event
-async def on_ready():
-    try:
-        # Erst Guild-Commands syncen
-        await tree.sync(guild=discord.Object(id=GUILD_ID))
-        print(f"✅ Commands für Guild {GUILD_ID} synchronisiert")
-    except Exception as e:
-        print(f"⚠️ Guild-Sync fehlgeschlagen: {e}")
-        # Fallback → global sync
-        await tree.sync()
-        print("🌍 Commands global synchronisiert")
-
-    print(f"🤖 Bot online als {bot.user}")
 
 
 if __name__ == "__main__":

@@ -7,9 +7,9 @@ import os
 
 # ---------- CONFIG ----------
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")  # Render-Umgebungsvariable
-GUILD_ID = 123456789012345678  # <- DEINE SERVER ID hier!
+GUILD_ID = 1396969113955602562  # <- DEINE SERVER ID hier!
 LOG_CHANNEL_ID = 1397304957518221312
-TICKET_CHANNEL_ID = 1412000000000000000  # <- Channel ID, wo die Setup Nachricht automatisch rein soll
+TICKET_CHANNEL_ID = 1396969114442006539  # <- Channel ID, wo die Setup Nachricht automatisch rein soll
 LOGO_URL = "https://cdn.discordapp.com/attachments/1396969116195360941/1411723745546211409/BLCP-Logo2_3.png"
 
 # Kategorien
@@ -105,7 +105,7 @@ class TicketDropdown(discord.ui.Select):
             except asyncio.TimeoutError:
                 antworten.append("_Keine Antwort_")
 
-        # Speichern
+       # Speichern
         user_tickets[interaction.user.id] = {
             "art": art,
             "channel_id": ticket_channel.id,

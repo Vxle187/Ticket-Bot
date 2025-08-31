@@ -1,10 +1,12 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import os
-import datetime
 
-# Bot Setup mit Intents
+# ==== SETTINGS ====
+TOKEN = "DEIN_BOT_TOKEN_HIER"
+GUILD_ID = 000000000000000000   # Server-ID
+LOG_CHANNEL_ID = 1397304957518221312  # Ticket-Logs
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -13,167 +15,121 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 tree = bot.tree
 
-# IDs
-TICKET_CATEGORY_IDS = {
-    "Bewerbungen": 1410111339359113318,
-    "Beschwerden": 1410111382237483088,
-    "Leitungs Anliegen": 1410111463783268382
+
+# ==== Fragen für Tickets ====
+QUESTIONS = {
+    "bewerbung": [
+        "Wie heißt du Ingame?",
+        "Wie alt bist du?",
+        "Warum möchtest du Teil unseres Teams werden?",
+        "Welche Erfahrungen bringst du mit?",
+    ],
+    "beschwerde": [
+        "Wen möchtest du melden?",
+        "Was ist passiert?",
+        "Hast du Beweise (z. B. Screenshots, Videos)?",
+    ],
+    "leitung": [
+        "Worum geht es in deinem Anliegen?",
+        "Welche Personen sind beteiligt?",
+        "Beschreibe bitte alles so detailliert wie möglich.",
+    ],
 }
 
-TICKET_LOG_CHANNEL_ID = 1397304957518221312
-BEFUGTE_RANG_IDS = [1410124850265198602]  # Leitung/Admin Rolle
 
-LOGO_URL = "attachment://BLCP-Logo2.png"
-
-# Speicher für Tickets
-user_tickets = {}
-
-
-# Dropdown-Menü
+# ==== Ticket Dropdown ====
 class TicketDropdown(discord.ui.Select):
     def __init__(self):
         options = [
-            discord.SelectOption(label="Bewerbungen", description="Bewerbung erstellen", emoji="📝"),
-            discord.SelectOption(label="Beschwerden", description="Eine Beschwerde einreichen", emoji="⚠️"),
-            discord.SelectOption(label="Leitungs Anliegen", description="Kontakt mit der Leitung", emoji="📌"),
+            discord.SelectOption(label="📩 Bewerbungen", value="bewerbung", description="Erstelle ein Bewerbungs-Ticket"),
+            discord.SelectOption(label="⚠️ Beschwerden", value="beschwerde", description="Erstelle ein Beschwerde-Ticket"),
+            discord.SelectOption(label="👮 Leitungs Anliegen", value="leitung", description="Erstelle ein Ticket für die Leitung"),
         ]
-        super().__init__(placeholder="Wähle eine Ticket-Art...", min_values=1, max_values=1, options=options)
+        super().__init__(placeholder="Bitte wähle einen Grund", options=options, min_values=1, max_values=1)
 
     async def callback(self, interaction: discord.Interaction):
-        art = self.values[0]
-        category_id = TICKET_CATEGORY_IDS[art]
-        category = discord.utils.get(interaction.guild.categories, id=category_id)
-
-        # Ticket Channel erstellen
-        channel = await interaction.guild.create_text_channel(
-            name=f"ticket-{interaction.user.name}",
-            category=category,
-            topic=f"Ticket von {interaction.user} ({interaction.user.id})"
-        )
-
-        # Fragen definieren
-        fragen = []
-        if art == "Bewerbungen":
-            fragen = ["Wie heißt du?", "Warum möchtest du dich bewerben?", "Welche Erfahrungen hast du?"]
-        elif art == "Beschwerden":
-            fragen = ["Gegen wen richtet sich die Beschwerde?", "Was ist passiert?", "Hast du Beweise?"]
-        elif art == "Leitungs Anliegen":
-            fragen = ["Worum geht es bei deinem Anliegen?", "Warum sollte es die Leitung klären?"]
-
-        antworten = []
-        def check(m): return m.author == interaction.user and m.channel == channel
-
-        await channel.send(f"👋 Willkommen {interaction.user.mention}, bitte beantworte die folgenden Fragen:")
-
-        for frage in fragen:
-            await channel.send(f"❓ {frage}")
-            msg = await bot.wait_for("message", check=check)
-            antworten.append(msg.content)
-
-        # Übersicht Embed
-        embed = discord.Embed(
-            title=f"📂 Ticket Übersicht – {art}",
-            description=f"Ticket von {interaction.user.mention}",
-            color=discord.Color.blue(),
-            timestamp=datetime.datetime.utcnow()
-        )
-        for i, (frage, antwort) in enumerate(zip(fragen, antworten), 1):
-            embed.add_field(name=f"Frage {i}: {frage}", value=antwort, inline=False)
-
-        embed.set_thumbnail(url=LOGO_URL)
-        embed.set_footer(text="BloodLife Police Department | Made by Vxle")
-
-        file = discord.File("BLCP-Logo2.png", filename="BLCP-Logo2.png")
-        await channel.send(embed=embed, file=file, view=TicketCloseView())
-
-        # Ticket speichern
-        user_tickets[interaction.user.id] = {
-            "channel_id": channel.id,
-            "art": art,
-            "antworten": antworten,
-            "created_at": datetime.datetime.utcnow().strftime("%d.%m.%Y %H:%M")
+        guild = interaction.guild
+        category_id = {
+            "bewerbung": 1410111339359113318,
+            "beschwerde": 1410111382237483088,
+            "leitung": 1410111463783268382,
         }
 
-        await interaction.response.send_message(f"✅ Dein Ticket wurde erstellt: {channel.mention}", ephemeral=True)
+        category = guild.get_channel(category_id[self.values[0]])
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        }
+
+        # Ticket-Channel erstellen
+        ticket_channel = await guild.create_text_channel(
+            f"ticket-{interaction.user.name}",
+            category=category,
+            overwrites=overwrites
+        )
+
+        # Embed Begrüßung
+        embed = discord.Embed(
+            title="🎫 Dein Ticket wurde erstellt!",
+            description=f"Hallo {interaction.user.mention}, willkommen in deinem **{self.values[0]}**-Ticket.\nBitte beantworte die folgenden Fragen:",
+            color=discord.Color.green()
+        )
+        await ticket_channel.send(embed=embed)
+
+        # Fragen senden
+        for question in QUESTIONS[self.values[0]]:
+            await ticket_channel.send(f"👉 **{question}**")
+
+        await interaction.response.send_message(f"✅ Dein Ticket wurde erstellt: {ticket_channel.mention}", ephemeral=True)
+
+        # Logs
+        log_channel = guild.get_channel(LOG_CHANNEL_ID)
+        if log_channel:
+            await log_channel.send(f"📂 Neues Ticket von {interaction.user.mention}: {ticket_channel.mention}")
 
 
-# View für Dropdown
 class TicketView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
         self.add_item(TicketDropdown())
 
 
-# Button fürs Schließen
-class TicketCloseView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="🔒 Ticket schließen", style=discord.ButtonStyle.danger)
-    async def close_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Rechte prüfen
-        if not any(role.id in BEFUGTE_RANG_IDS for role in interaction.user.roles):
-            await interaction.response.send_message("❌ Du hast keine Berechtigung, Tickets zu schließen.", ephemeral=True)
-            return
-
-        channel = interaction.channel
-        ticket_owner_id = None
-        ticket_data = None
-
-        for uid, data in user_tickets.items():
-            if data.get("channel_id") == channel.id:
-                ticket_owner_id = uid
-                ticket_data = data
-                break
-
-        if not ticket_data:
-            await interaction.response.send_message("❌ Ticketdaten nicht gefunden.", ephemeral=True)
-            return
-
-        # Transkript ins Log senden
-        log_channel = interaction.guild.get_channel(TICKET_LOG_CHANNEL_ID)
-        if log_channel:
-            embed = discord.Embed(
-                title=f"📑 Ticket-Log: {ticket_data['art']}",
-                description=f"Von: <@{ticket_owner_id}> | Geschlossen von {interaction.user.mention}",
-                color=discord.Color.orange(),
-                timestamp=datetime.datetime.utcnow()
-            )
-            antworten_text = "\n".join([f"**{i+1}.** {a}" for i, a in enumerate(ticket_data['antworten'])])
-            embed.add_field(name="Antworten", value=antworten_text or "_Keine Antworten_", inline=False)
-            embed.set_thumbnail(url=LOGO_URL)
-            embed.set_footer(text="BloodLife Police Department | Made by Vxle")
-
-            file = discord.File("BLCP-Logo2.png", filename="BLCP-Logo2.png")
-            await log_channel.send(embed=embed, file=file)
-
-        # Ticket löschen
-        del user_tickets[ticket_owner_id]
-        await interaction.response.send_message("✅ Ticket wird geschlossen und gelöscht.", ephemeral=True)
-        await channel.delete()
-
-
-# Setup
-@bot.event
-async def on_ready():
-    await tree.sync()
-    print(f"✅ Eingeloggt als {bot.user}")
-
-
-# Command zum Setup des Ticket-Systems
-@tree.command(name="ticketsetup", description="Erstellt das Ticket-Panel mit Dropdown.")
-async def ticketsetup(interaction: discord.Interaction):
+# ==== /tickets Command ====
+@tree.command(name="tickets", description="Ticket System Setup")
+async def tickets(interaction: discord.Interaction):
     embed = discord.Embed(
         title="🎫 Ticket-System",
-        description="Wähle unten die Kategorie aus, um ein Ticket zu erstellen.",
+        description="Willkommen im Ticketsystem!\n\nBitte wähle unten einen Grund aus, um ein Ticket zu erstellen.\n\n**Wichtig:** Beschreibe dein Anliegen so genau wie möglich.",
         color=discord.Color.blue()
     )
     file = discord.File("BLCP-Logo2.png", filename="BLCP-Logo2.png")
-    embed.set_thumbnail(url=LOGO_URL)
-    embed.set_footer(text="BloodLife Police Department | Made by Vxle")
-    await interaction.channel.send(embed=embed, file=file, view=TicketView())
-    await interaction.response.send_message("✅ Ticket-Panel erstellt.", ephemeral=True)
+    embed.set_image(url="attachment://BLCP-Logo2.png")
+    embed.set_footer(text="Made by Vxle")
+
+    await interaction.response.send_message(embed=embed, file=file, view=TicketView())
 
 
-# Bot starten
-bot.run(os.getenv("DISCORD_BOT_TOKEN"))
+# ==== /ticketclose Command ====
+@tree.command(name="ticketclose", description="Schließt das aktuelle Ticket")
+async def ticketclose(interaction: discord.Interaction):
+    if interaction.channel.name.startswith("ticket-"):
+        await interaction.response.send_message("✅ Dieses Ticket wird geschlossen...", ephemeral=True)
+
+        log_channel = interaction.guild.get_channel(LOG_CHANNEL_ID)
+        if log_channel:
+            await log_channel.send(f"🗑️ Ticket {interaction.channel.name} wurde von {interaction.user.mention} geschlossen.")
+
+        await interaction.channel.delete()
+    else:
+        await interaction.response.send_message("❌ Dies ist kein Ticket-Channel.", ephemeral=True)
+
+
+# ==== Bot Ready Event ====
+@bot.event
+async def on_ready():
+    await tree.sync(guild=discord.Object(id=GUILD_ID))
+    print(f"✅ Bot ist online als {bot.user}")
+
+
+bot.run(TOKEN)

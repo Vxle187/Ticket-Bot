@@ -6,7 +6,7 @@ import asyncio
 import datetime
 
 # ---------- CONFIG ----------
-TOKEN = os.environ.get("TOKEN")  # <- in Render MUSS der Key genauso heißen
+TOKEN = os.environ.get("TOKEN")  # dein Environment Key in Render
 GUILD_ID = 123456789012345678
 LOG_CHANNEL_ID = 1397304957518221312
 LOGO_URL = "https://cdn.discordapp.com/attachments/1396969116195360941/1411723745546211409/BLCP-Logo2_3.png"

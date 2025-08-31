@@ -5,7 +5,8 @@ import asyncio
 import datetime
 
 # ---------- CONFIG ----------
-TOKEN = "TOKEN"  # <- HIER DEIN TOKEN
+TOKEN = os.environ.get("DISCORD_TOKEN")  # wenn dein Key aber "TOKEN" heißt
+"  # <- HIER DEIN TOKEN
 GUILD_ID = 123456789012345678  # <- HIER DEINE SERVER ID
 LOG_CHANNEL_ID = 1397304957518221312
 LOGO_URL = "https://cdn.discordapp.com/attachments/1396969116195360941/1411723745546211409/BLCP-Logo2_3.png?ex=68b5b1b1&is=68b46031&hm=ed0276f62f92b736f2cd640cc1e37d988a3c6014890d83edc3e687c4edbc2c55&"
@@ -187,4 +188,4 @@ async def on_ready():
     print(f"✅ Bot online als {bot.user}")
 
 
-bot.run(TOKEN)
+bot.run(DISCORD_TOKEN)

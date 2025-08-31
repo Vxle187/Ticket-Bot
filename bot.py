@@ -188,4 +188,4 @@ async def on_ready():
     print(f"✅ Bot online als {bot.user}")
 
 
-bot.run(DISCORD_TOKEN)
+bot.run(TOKEN)

@@ -1,3 +1,4 @@
+
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -85,17 +86,28 @@ class TicketDropdown(discord.ui.Select):
 
         await interaction.response.send_message(f"✅ Ticket erstellt: {ticket_channel.mention}", ephemeral=True)
 
-        # Fragen stellen
-        antworten = []
-        for frage in TICKET_FRAGEN.get(art, []):
-            await ticket_channel.send(f"**{frage}**")
+       # Ticket erstellen
+ticket_channel = await guild.create_text_channel(
+    name=f"ticket-{interaction.user.name}",
+    category=category,
+    overwrites={
+        guild.default_role: discord.PermissionOverwrite(read_messages=False),
+        interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+    },
+)
 
-            def check(m): return m.author == interaction.user and m.channel == ticket_channel
-            try:
-                msg = await bot.wait_for("message", check=check, timeout=300)
-                antworten.append(msg.content)
-            except asyncio.TimeoutError:
-                antworten.append("_Keine Antwort_")
+await interaction.response.send_message(f"✅ Ticket erstellt: {ticket_channel.mention}", ephemeral=True)
+
+# Begrüßung reinschreiben
+await ticket_channel.send(
+    f"👋 Willkommen {interaction.user.mention}!\n\n"
+    "Bitte beantworte die folgenden Fragen so genau wie möglich, damit wir dir bestmöglich helfen können."
+)
+
+# Fragen stellen
+antworten = []
+for frage in TICKET_FRAGEN.get(art, []):
+    await ticket_channel.send(f"**{frage}**")
 
         # Speichern
         user_tickets[interaction.user.id] = {

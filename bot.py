@@ -8,7 +8,7 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Channel, wo die Ticket-Nachricht automatisch gepostet wird
-TICKET_CHANNEL_ID = 123456789012345678  # <-- DEINE Channel-ID hier
+TICKET_CHANNEL_ID = 1396969114442006539  # <-- DEINE Channel-ID hier
 
 # Kategorien für Tickets
 TICKET_CATEGORIES = {

@@ -1,13 +1,13 @@
-import os
 import discord
 from discord import app_commands
 from discord.ext import commands
 import asyncio
 import datetime
+import os
 
 # ---------- CONFIG ----------
-TOKEN = os.environ.get("TOKEN")  # dein Environment Key in Render
-GUILD_ID = 123456789012345678
+DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")  # Token aus Render-Env
+GUILD_ID = 123456789012345678  # <- deine Server-ID HIER einsetzen!
 LOG_CHANNEL_ID = 1397304957518221312
 LOGO_URL = "https://cdn.discordapp.com/attachments/1396969116195360941/1411723745546211409/BLCP-Logo2_3.png"
 
@@ -184,8 +184,20 @@ async def ticketclose(interaction: discord.Interaction):
 # ---------- START ----------
 @bot.event
 async def on_ready():
-    await tree.sync(guild=discord.Object(id=GUILD_ID))
-    print(f"✅ Bot online als {bot.user}")
+    try:
+        # Erst Guild-Commands syncen
+        await tree.sync(guild=discord.Object(id=GUILD_ID))
+        print(f"✅ Commands für Guild {GUILD_ID} synchronisiert")
+    except Exception as e:
+        print(f"⚠️ Guild-Sync fehlgeschlagen: {e}")
+        # Fallback → global sync
+        await tree.sync()
+        print("🌍 Commands global synchronisiert")
+
+    print(f"🤖 Bot online als {bot.user}")
 
 
-bot.run(TOKEN)
+if __name__ == "__main__":
+    if not DISCORD_TOKEN:
+        raise ValueError("❌ DISCORD_TOKEN nicht gefunden! Bitte in Render als Environment Variable setzen.")
+    bot.run(DISCORD_TOKEN)

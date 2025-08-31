@@ -7,4 +7,6 @@ bot = commands.Bot(command_prefix="!")
 async def on_ready():
     print(f"✅ Bot ist online als {bot.user}")
 
+import os
 bot.run(os.getenv("DISCORD_BOT_TOKEN"))
+

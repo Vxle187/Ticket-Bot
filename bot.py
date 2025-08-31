@@ -192,6 +192,36 @@ async def ticketclose(interaction: discord.Interaction):
     await interaction.response.send_message("✅ Ticket geschlossen.", ephemeral=True)
     await channel.delete()
 
+@bot.event
+async def on_ready():
+    try:
+        # Commands syncen
+        await tree.sync(guild=discord.Object(id=GUILD_ID))
+        print(f"✅ Commands für Guild {GUILD_ID} synchronisiert")
+    except Exception as e:
+        print(f"⚠️ Guild-Sync fehlgeschlagen: {e}")
+        await tree.sync()
+        print("🌍 Commands global synchronisiert")
+
+    print(f"🤖 Bot online als {bot.user}")
+
+    # ---- Automatisch Ticket-System posten ----
+    channel_id = 1396969114442006539  # HIER die Channel-ID, wo der Embed rein soll
+    channel = bot.get_channel(channel_id)
+    if channel:
+        embed = discord.Embed(
+            title="📩 BloodLife | Ticketsystem",
+            description="Bitte wähle im Dropdown-Menü aus, für welchen Bereich du ein Ticket erstellen möchtest.",
+            color=discord.Color.red(),
+        )
+        embed.set_thumbnail(url=LOGO_URL)
+        embed.set_image(url=LOGO_URL)
+        embed.set_footer(text="BloodLife Police Department | Made by Vxle", icon_url=LOGO_URL)
+
+        await channel.send(embed=embed, view=TicketDropdownView())
+        print("📩 Ticketsystem automatisch gesendet!")
+    else:
+        print("❌ Channel für Ticketsystem nicht gefunden! Check die ID.")
 
 # ---------- START ----------
 @bot.event

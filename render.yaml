@@ -1,11 +1,7 @@
 services:
   - type: worker
-    name: LSPD Ticket Bot
-    runtime: python
-    branch: main
+    name: ticket-bot
+    env: python
+    plan: starter
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "python bot.py
-"
-    envVars:
-      - key: DISCORD_BOT_TOKEN
-        sync: false
+    startCommand: "python bot.py"

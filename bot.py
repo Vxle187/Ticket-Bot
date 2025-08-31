@@ -133,6 +133,32 @@ class TicketDropdownView(discord.ui.View):
         super().__init__(timeout=None)
         self.add_item(TicketDropdown())
 
+# ==== /angenommen Command ====
+@tree.command(name="angenommen", description="Markiert den User im Ticket als angenommen")
+async def angenommen(interaction: discord.Interaction):
+    if not interaction.channel.name.startswith("ticket-"):
+        await interaction.response.send_message("❌ Dieser Befehl funktioniert nur in einem Ticket.", ephemeral=True)
+        return
+
+    # User aus den Channel-Permissions holen
+    ticket_user = None
+    for overwrite in interaction.channel.overwrites:
+        if isinstance(overwrite, discord.Member):
+            ticket_user = overwrite
+            break
+
+    if ticket_user is None:
+        await interaction.response.send_message("⚠️ Konnte den Ticket-Ersteller nicht finden.", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="🎉 Glückwunsch!",
+        description=f"{ticket_user.mention}, **du hast es geschafft!** 🎊\n\nWillkommen im Team!",
+        color=discord.Color.green()
+    )
+    embed.set_footer(text="BloodLife Police Department")
+
+    await interaction.response.send_message(embed=embed)
 
 # Ticket Setup Command (manuell)
 @tree.command(name="ticketsetup", description="Setup für Ticketsystem")

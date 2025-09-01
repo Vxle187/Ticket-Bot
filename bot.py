@@ -10,7 +10,7 @@ DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")  # Render-Umgebungsvariable
 GUILD_ID = 1396969113955602562  # <- DEINE SERVER ID hier!
 LOG_CHANNEL_ID = 1397304957518221312
 TICKET_CHANNEL_ID = 1396969114442006539  # <- Channel ID, wo die Setup Nachricht automatisch rein soll
-LOGO_URL = "https://cdn.discordapp.com/attachments/1396969116195360941/1411723745546211409/BLCP-Logo2_3.png"
+LOGO_URL = "https://i.imgur.com/NVC00ov.png"
 
 # Kategorien
 TICKET_CATEGORY_IDS = {

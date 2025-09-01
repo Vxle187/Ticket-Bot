@@ -40,7 +40,7 @@ TICKET_FRAGEN = {
     ],
 }
 
-# Speicher
+# Speicher im RAM (nicht persistent!)
 user_tickets = {}
 
 # ---------- BOT ----------
@@ -105,7 +105,7 @@ class TicketDropdown(discord.ui.Select):
             except asyncio.TimeoutError:
                 antworten.append("_Keine Antwort_")
 
-       # Speichern
+        # Speichern (optional, wird nicht fürs Schließen gebraucht)
         user_tickets[interaction.user.id] = {
             "art": art,
             "channel_id": ticket_channel.id,
@@ -133,6 +133,7 @@ class TicketDropdownView(discord.ui.View):
         super().__init__(timeout=None)
         self.add_item(TicketDropdown())
 
+
 # ==== /angenommen Command ====
 @tree.command(name="angenommen", description="Markiert den User im Ticket als angenommen")
 async def angenommen(interaction: discord.Interaction):
@@ -140,7 +141,7 @@ async def angenommen(interaction: discord.Interaction):
         await interaction.response.send_message("❌ Dieser Befehl funktioniert nur in einem Ticket.", ephemeral=True)
         return
 
-    # User aus den Channel-Permissions holen
+    # Den Ticket-Ersteller finden (aus Overwrites)
     ticket_user = None
     for overwrite in interaction.channel.overwrites:
         if isinstance(overwrite, discord.Member):
@@ -160,7 +161,8 @@ async def angenommen(interaction: discord.Interaction):
 
     await interaction.response.send_message(embed=embed)
 
-# Ticket Setup Command (manuell)
+
+# ==== /ticketsetup Command ====
 @tree.command(name="ticketsetup", description="Setup für Ticketsystem")
 async def ticketsetup(interaction: discord.Interaction):
     embed = discord.Embed(
@@ -175,7 +177,7 @@ async def ticketsetup(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, view=TicketDropdownView())
 
 
-# Ticket Close Command
+# ==== /ticketclose Command ====
 @tree.command(name="ticketclose", description="Schließt das aktuelle Ticket")
 async def ticketclose(interaction: discord.Interaction):
     if not any((role.id in BEFUGTE_RANG_IDS) for role in interaction.user.roles):
@@ -183,34 +185,32 @@ async def ticketclose(interaction: discord.Interaction):
         return
 
     channel = interaction.channel
-    ticket_owner_id = None
-    ticket_data = None
-    for uid, data in user_tickets.items():
-        if data.get("channel_id") == channel.id:
-            ticket_owner_id = uid
-            ticket_data = data
-            break
-
-    if not ticket_data:
-        await interaction.response.send_message("❌ Kein Ticket gefunden.", ephemeral=True)
+    if not channel.name.startswith("ticket-"):
+        await interaction.response.send_message("❌ Dies ist kein Ticket-Channel.", ephemeral=True)
         return
 
-    # Übersicht für Logs
+    # Versuche den User aus dem Channel zu finden
+    ticket_user = None
+    for member in channel.members:
+        if member.bot is False:  # wir nehmen an: der Nicht-Bot ist der Ersteller
+            ticket_user = member
+            break
+
+    # Log-Channel
     log_channel = interaction.guild.get_channel(LOG_CHANNEL_ID)
+
     embed = discord.Embed(
-        title=f"🗂 Ticket-Transkript: {ticket_data['art'].capitalize()}",
-        description=f"Von: <@{ticket_owner_id}> (geschlossen von {interaction.user.mention})",
+        title="🗂 Ticket geschlossen",
+        description=f"Channel: {channel.name}\nGeschlossen von: {interaction.user.mention}",
         color=discord.Color.orange(),
     )
-    embed.set_thumbnail(url=LOGO_URL)
+    embed.set_footer(text="BloodLife Police Department | Made by Vxle")
 
-    for i, ant in enumerate(ticket_data.get("antworten", []), start=1):
-        embed.add_field(name=f"Frage {i}", value=ant, inline=False)
+    if ticket_user:
+        embed.add_field(name="Ersteller", value=ticket_user.mention, inline=False)
 
-    embed.set_footer(text=f"Erstellt: {ticket_data['created_at']} | BloodLife PD")
     await log_channel.send(embed=embed)
 
-    del user_tickets[ticket_owner_id]
     await interaction.response.send_message("✅ Ticket geschlossen.", ephemeral=True)
     await channel.delete()
 

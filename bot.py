@@ -135,23 +135,27 @@ class TicketDropdownView(discord.ui.View):
 
 
 # ==== /angenommen Command ====
+
 @tree.command(name="angenommen", description="Markiert den User im Ticket als angenommen")
 async def angenommen(interaction: discord.Interaction):
     if not interaction.channel.name.startswith("ticket-"):
         await interaction.response.send_message("❌ Dieser Befehl funktioniert nur in einem Ticket.", ephemeral=True)
         return
 
-    # Den Ticket-Ersteller finden (aus Overwrites)
-    ticket_user = None
-    for overwrite in interaction.channel.overwrites:
-        if isinstance(overwrite, discord.Member):
-            ticket_user = overwrite
-            break
+    # Channelname: "ticket-username"
+    channel_name = interaction.channel.name.replace("ticket-", "")
+    guild = interaction.guild
 
-    if ticket_user is None:
+    # Versuche, den User zu finden
+    ticket_user = discord.utils.find(
+        lambda m: m.name.lower() == channel_name.lower(), guild.members
+    )
+
+    if not ticket_user:
         await interaction.response.send_message("⚠️ Konnte den Ticket-Ersteller nicht finden.", ephemeral=True)
         return
 
+    # Erfolgs-Nachricht
     embed = discord.Embed(
         title="🎉 Glückwunsch!",
         description=f"{ticket_user.mention}, **du hast es geschafft!** 🎊\n\nWillkommen im Team!",
@@ -160,7 +164,6 @@ async def angenommen(interaction: discord.Interaction):
     embed.set_footer(text="BloodLife Police Department")
 
     await interaction.response.send_message(embed=embed)
-
 
 # ==== /ticketsetup Command ====
 @tree.command(name="ticketsetup", description="Setup für Ticketsystem")
